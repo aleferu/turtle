@@ -1,3 +1,6 @@
+import math
+import os
+
 
 class TurtleCanvas():
     def __init__(self, w, h, bg_color=0x000000, pen_color=0xFFFFFF):
@@ -5,12 +8,15 @@ class TurtleCanvas():
         self.height = h
         self.pixels = [bg_color] * (w * h)
         self.cursor = 0
-        self.pen_down = True
+        self.is_pen_down = True
         self.angle = 0
         self.color = pen_color
 
-    def save_to_ppm_file(self, name):
-        with open(name, 'w') as f:
+    def save_to_ppm_file(self, file_name, folder):
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        target = folder + file_name
+        with open(target, 'w') as f:
             f.write(f'P3\n{self.width} {self.height}\n255\n')
             for pixel in self.pixels:
                 r = pixel >> (8 * 2) & 0xFF
@@ -25,18 +31,40 @@ class TurtleCanvas():
         self.is_pen_down = True
 
     def right(self, turning_angle):
-        self.angle += turning_angle
-
-    def left(self, turning_angle):
         self.angle -= turning_angle
 
-    def forward(self, steps):
-        # TODO: implement DDA algorithm?
-        pass
+    def left(self, turning_angle):
+        self.angle += turning_angle
 
-    def backwards(self, steps):
-        # TODO: Maybe self.forward(-steps) would work
-        pass
+    # geeksforgeeks.org/dda-line-generation-algorithm-computer-graphics/
+    # Modified DDA algorithm, had to modify it for my case or it didn't work
+    def forward(self, distance):
+        x0 = self.cursor % self.width
+        y0 = self.cursor // self.width
+        rads = math.radians(self.angle)
+        x1 = round(x0 + distance * math.cos(rads))
+        y1 = round(y0 - distance * math.sin(rads))
+        if not self.is_pen_down:
+            self.goto(x1, y1)
+            return
+        if not (0 <= x1 < self.width and 0 <= y1 < self.height):
+            print(f'Tried to draw a line that ends at({x1}, {y1}) ')
+            print(f'but the canvas is {self.width}x{self.height}')
+            return
+        dx = abs(x0 - x1)
+        dy = abs(y0 - y1)
+        steps = max(dx, dy)
+        if steps > 0:  # Needed so there's no division by 0
+            xinc = dx / steps if x0 < x1 else - dx / steps
+            yinc = dy / steps if y0 < y1 else - dy / steps
+            x, y = float(x0), float(y0)
+            for _ in range(steps):
+                self.pixels[int(y) * self.width + int(x)] = self.color
+                (x, y) = (x + xinc, y + yinc)
+            self.cursor = int(y) * self.width + int(x)
+
+    def backwards(self, distance):
+        self.forward(-distance)
 
     def set_color(self, color):
         self.color = color
@@ -46,7 +74,7 @@ class TurtleCanvas():
             print(f'Tried to call goto({x}, {y}) ')
             print(f'but the canvas is {self.width}x{self.height}')
             return
-        self.cursor = x * self.width + y
+        self.cursor = y * self.width + x
 
     def dot(self):
         if self.is_pen_down:
