@@ -62,6 +62,8 @@ class TurtleCanvas():
                 self.pixels[int(y) * self.width + int(x)] = self.color
                 (x, y) = (x + xinc, y + yinc)
             self.cursor = int(y) * self.width + int(x)
+        else:
+            self.pixels[self.cursor] = self.color
 
     def backwards(self, distance):
         self.forward(-distance)
